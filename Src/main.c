@@ -61,6 +61,9 @@ enum _eENGINE_PROCESS {
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
+//#define USE_ENGINE_START
+//#define USE_REMOTE_AUTECH
+
 /* USER CODE BEGIN PD */
 #define CANDRV_RX_BUF_CNT					20
 #define DIO1_ON 				HAL_GPIO_WritePin(DOUT1_GPIO_Port,DOUT1_Pin,GPIO_PIN_SET);
@@ -90,16 +93,21 @@ enum _eENGINE_PROCESS {
 #define LED_ORANGE_ON		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
 #define LED_ORANGE_TOG		HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
 
+#define SID_R_REMOTE			0x18A
 //
 
 //#define _3STEP_TOGGLE_UP_SW_MASK			0x10
 #define _3STEP_TOGGLE_UP_SW_MASK        0x08    // shjang
-#define SAFETY_BAR_ON_MASK      0x08
+#define SAFETY_BAR_ON_MASK      		0x08
 
-#define KEY_IN_MASK     0x10    //shajng, for A
-#define KEY_ACC_MASK    0x20 // shjang, for B
-#define KEY_ON_MASK  0x40    // shjang, for C
-#define KEY_IGNITION_MASK       0x80    // shjang, for D
+#define KEY_IN_MASK     				0x10    //shajng, for A
+#define KEY_ACC_MASK   		 			0x20 // shjang, for B
+#define KEY_ON_MASK  					0x40    // shjang, for C
+#define KEY_IGNITION_MASK      			0x80    // shjang, for D
+
+#define SW_S__ON_MASK					0x01	//pedal sw
+#define SW_UP_ON_MASK					0x02	//horn
+#define SW_DN_ON_MASK					0x04	//declation
 
 
 //#define _2STEP_TOGGLE_UP_SW_MASK			0x40
@@ -205,35 +213,35 @@ void CANDrv_Init(void)
 void Engine_Control(uint8_t data)
 {
 	if ( (data & 0xF0) > 0)  // status B, C, D
-        {
+    {
           if (data&KEY_IN_MASK) {
-                  DIO1_OFF; //key acc 
-                  DIO2_OFF; //key on 
-                  DIO3_OFF; //key ignition 
-                  EgnInfo.step = EGNP_NONE;
-                  EgnInfo.status = EGNP_NONE;
-                  AttInfo.status = EGNP_NONE;
+              DIO1_OFF; //key acc 
+              DIO2_OFF; //key on 
+              DIO3_OFF; //key ignition 
+              EgnInfo.step = EGNP_NONE;
+              EgnInfo.status = EGNP_NONE;
+              AttInfo.status = EGNP_NONE;
           }
-            if (data&KEY_ACC_MASK) {
-                  DIO1_ON; //key acc 
-                  DIO2_OFF; //key on 
-                  DIO3_OFF; //key ignition 
-                   EgnInfo.status = EGNP_ACC;
-            }
-            if (data&KEY_ON_MASK) {
-                  DIO1_ON; //key acc 
-                  DIO2_ON; //key on 
-                  DIO3_OFF; //key ignition 
-                  EgnInfo.status = EGNP_ON;
-            }
-            if (data&KEY_IGNITION_MASK && !(data&SAFETY_BAR_ON_MASK)) {
-                  DIO1_ON; //key acc 
-                  DIO2_ON; //key on 
-                  DIO3_ON; //key ignition 
-                  EgnInfo.status = EGNP_START;
-                  EgnInfo.step = EGNP_START;
-             }
-        }
+          if (data&KEY_ACC_MASK) {
+              DIO1_ON; //key acc 
+              DIO2_OFF; //key on 
+              DIO3_OFF; //key ignition 
+              EgnInfo.status = EGNP_ACC;
+          }
+          if (data&KEY_ON_MASK) {
+              DIO1_ON; //key acc 
+              DIO2_ON; //key on 
+              DIO3_OFF; //key ignition 
+              EgnInfo.status = EGNP_ON;
+          }
+          if (data&KEY_IGNITION_MASK && !(data&SAFETY_BAR_ON_MASK)) {
+              DIO1_ON; //key acc 
+              DIO2_ON; //key on 
+              DIO3_ON; //key ignition 
+              EgnInfo.status = EGNP_START;
+              EgnInfo.step = EGNP_START;
+          }
+    }
         
 	//side bar
 	if (data&SAFETY_BAR_ON_MASK) {
@@ -243,16 +251,46 @@ void Engine_Control(uint8_t data)
 		DIO4_OFF;
 	}
         
-        //3way Toggle check 
-        if (data&0x02) // UP
-          if (EgnInfo.status == EGNP_START)
-            AttInfo.status = EGNP_ON;
+    //3way Toggle check 
+    if (data&0x02) { // UP
+    	if (EgnInfo.status == EGNP_START) {
+        	AttInfo.status = EGNP_ON;
+    	}
+    }
 }
 
-void DIO_Control(void)
+void DIO_Control(uint8_t data)
 {
+    if (data&SAFETY_BAR_ON_MASK) {
+		DIO4_ON;
+    }
+	else {
+		DIO4_OFF;
+	}
+
+    if (data&SW_UP_ON_MASK) {
+		DIO5_ON;
+    }
+	else {
+		DIO5_OFF;
+	}
+
+    if (data&SW_DN_ON_MASK) {
+		DIO6_ON;
+    }
+	else {
+		DIO6_OFF;
+	}
+
+    if (data&SW_S__ON_MASK) {
+		DIO7_ON;
+    }
+	else {
+		DIO7_OFF;
+	}	
 }
 
+//potentionmeter
 void PtnMtr_Control(uint8_t data)
 {
 	/* if (data&RIGHT_SIDE_PUSH_RR_SW_MASK) {
@@ -271,13 +309,16 @@ void PtnMtr_Control(uint8_t data)
 		}
 	}*/
         
-  // Data in : 0x0~0x50
-  //if (AttInfo.step == EGNP_ON) {
-    if (data > 0x2A && data < 0x3A)
-      PtrMtrInfo.step =  0x80;
-    else
-      PtrMtrInfo.step =  (uint8_t)((float)data * 255. / 0x50);  // scale to 0~0xFF
-    MCP41HV51_Control(1, PtrMtrInfo.step);                // 0x00 ~ 0xff값을 입력
+  	// Data in : 0x0~0x50
+  	//if (AttInfo.step == EGNP_ON) {
+	    if (data > 0x2A && data < 0x3A) {
+	    	PtrMtrInfo.step =  0x80;
+	    }
+	    else {
+	    	PtrMtrInfo.step =  (uint8_t)((float)data * 255. / 0x50);  // scale to 0~0xFF
+	    }
+		
+	    MCP41HV51_Control(1, PtrMtrInfo.step);                // 0x00 ~ 0xff값을 입력
   //}
     
 }
@@ -372,11 +413,16 @@ int main(void)
 	//if(CANInfo.rxHead != CANInfo.rxTail) {
 	if (can1_rx0_flag == 1) {
 		can1_rx0_flag = 0;
-		if(CANInfo.rx[CANInfo.rxHead].header.StdId == 0x18A){                           
+		if (CANInfo.rx[CANInfo.rxHead].header.StdId == SID_R_REMOTE){       
+#ifdef USE_ENGINE_START
 			Engine_Control(CANInfo.rx[CANInfo.rxHead].data[2]);
-			//DIO_Control();
+#endif
+			DIO_Control(CANInfo.rx[CANInfo.rxHead].data[2]); //pjg++210203
+#ifdef USE_REMOTE_AUTECH
 			//PtnMtr_Control(CANInfo.rx[CANInfo.rxHead].data[2]);
-                        PtnMtr_Control(CANInfo.rx[CANInfo.rxHead].data[4]); // shjang
+#else
+            PtnMtr_Control(CANInfo.rx[CANInfo.rxHead].data[4]); // shjang
+#endif
 			LED_ORANGE_TOG;
 		}
 		//CANInfo.rxTail++;
