@@ -312,10 +312,12 @@ void PtnMtr_Control(uint8_t data)
   	// Data in : 0x0~0x50
   	//if (AttInfo.step == EGNP_ON) {
 	    if (data > 0x2A && data < 0x3A) {
-	    	PtrMtrInfo.step =  0x80;
+	    	PtrMtrInfo.step =  0x80; //128
 	    }
 	    else {
-	    	PtrMtrInfo.step =  (uint8_t)((float)data * 255. / 0x50);  // scale to 0~0xFF
+	    	//PtrMtrInfo.step =  (uint8_t)((float)data * 255. / 0x50);  // scale to 0~0xFF
+	    	PtrMtrInfo.step =  (uint8_t)((data * 204) / 80);  // scale to 0~0xFF //80은 최대 값을 포텐션미터의 범위를 선정
+			//PtrMtrInfo.step =  (uint8_t)((data * 204) / 77);  // scale to 0~0xFF
 	    }
 		
 	    MCP41HV51_Control(1, PtrMtrInfo.step);                // 0x00 ~ 0xff���� �Է�
