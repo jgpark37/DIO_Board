@@ -105,7 +105,7 @@ enum _eENGINE_PROCESS {
 #define KEY_ON_MASK  					0x40    // shjang, for C
 #define KEY_IGNITION_MASK      			0x80    // shjang, for D
 
-#define SW_S__ON_MASK					0x01	//pedal sw
+#define SW_S__ON_MASK					0x08	//pedal sw
 #define SW_UP_ON_MASK					0x02	//horn
 #define SW_DN_ON_MASK					0x04	//declation
 
@@ -261,12 +261,14 @@ void Engine_Control(uint8_t data)
 
 void DIO_Control(uint8_t data)
 {
+#if 0
     if (data&SAFETY_BAR_ON_MASK) {
 		DIO4_ON;
     }
 	else {
 		DIO4_OFF;
 	}
+#endif
 
     if (data&SW_UP_ON_MASK) {
 		DIO5_ON;
@@ -311,13 +313,13 @@ void PtnMtr_Control(uint8_t data)
         
   	// Data in : 0x0~0x50
   	//if (AttInfo.step == EGNP_ON) {
-	    if (data > 0x2A && data < 0x3A) {
+	    if (data > 0x21 && data < 0x2D) {
 	    	PtrMtrInfo.step =  0x80; //128
 	    }
 	    else {
 	    	//PtrMtrInfo.step =  (uint8_t)((float)data * 255. / 0x50);  // scale to 0~0xFF
-	    	PtrMtrInfo.step =  (uint8_t)((data * 204) / 80);  // scale to 0~0xFF //80은 최대 값을 포텐션미터의 범위를 선정
-			//PtrMtrInfo.step =  (uint8_t)((data * 204) / 77);  // scale to 0~0xFF
+	    	//PtrMtrInfo.step =  (uint8_t)((data * 204) / 80);  // scale to 0~0xFF //80은 리모콘의 볼륨 범위가 80단계
+			PtrMtrInfo.step =  (uint8_t)((data * 155) / 80)+50;  // scale to 0~0xFF
 	    }
 		
 	    MCP41HV51_Control(1, PtrMtrInfo.step);                // 0x00 ~ 0xff���� �Է�
@@ -770,6 +772,7 @@ void SPI1_CS2_Disable(void)
 }
 //------------------------------------------------------------------------------
 // CAN RCV Interrupt Callback Function
+uint8_t vr;
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
  
     if(hcan->Instance == CAN1){
@@ -778,6 +781,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan){
         HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, 
         		&CANInfo.rx[CANInfo.rxHead].header, &CANInfo.rx[CANInfo.rxHead].data[0]);
         can1_rx0_flag = 1;
+		vr = CANInfo.rx[CANInfo.rxHead].data[4];
         //CANInfo.rxHead++;
 	 //if (CANInfo.rxHead >= CANDRV_RX_BUF_CNT) CANInfo.rxHead = 0;
     }
